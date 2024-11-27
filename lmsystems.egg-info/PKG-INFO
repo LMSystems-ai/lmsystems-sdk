@@ -1,0 +1,10 @@
+Metadata-Version: 2.1
+Name: lmsystems
+Version: 0.2.0
+Summary: SDK for integrating purchased graphs from the lmsystems marketplace.
+Home-page: https://github.com/RVCA212/lmsystems-sdk
+Author: Sean Sullivan
+Author-email: sean.sullivan3@yahoo.com
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+License-File: LICENSE
