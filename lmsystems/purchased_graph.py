@@ -5,14 +5,16 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.pregel.protocol import PregelProtocol
 from langgraph_sdk.client import LangGraphClient, SyncLangGraphClient
 import requests
-import cryptography
 from .exceptions import (
-    InvalidAPIKeyError,
-    GraphNotPurchasedError,
-    GraphNotFoundError,
-    BackendAPIError,
     LmsystemsError,
+    AuthenticationError,
+    GraphError,
+    InputError,
+    APIError
 )
+import os
+from lmsystems.config import Config
+
 class PurchasedGraph(PregelProtocol):
     def __init__(
         self,
@@ -20,6 +22,8 @@ class PurchasedGraph(PregelProtocol):
         api_key: str,
         config: Optional[RunnableConfig] = None,
         default_state_values: Optional[dict[str, Any]] = None,
+        base_url: str = Config.DEFAULT_BASE_URL,
+        development_mode: bool = False,
     ):
         """
         Initialize a PurchasedGraph instance.
@@ -29,100 +33,113 @@ class PurchasedGraph(PregelProtocol):
             api_key: The buyer's lmsystems API key.
             config: Optional RunnableConfig for additional configuration.
             default_state_values: Optional default values for required state parameters.
+            base_url: The base URL of the marketplace backend.
+            development_mode: Whether to run in development mode.
+
+        Raises:
+            AuthenticationError: If the API key is invalid
+            GraphError: If the graph doesn't exist or hasn't been purchased
+            InputError: If required configuration is invalid
+            APIError: If there are backend communication issues
         """
+        if not api_key:
+            raise AuthenticationError("API key is required.")
+        if not graph_name:
+            raise InputError("Graph name is required")
+
         self.graph_name = graph_name
         self.api_key = api_key
         self.config = config
         self.default_state_values = default_state_values or {}
+        self.base_url = base_url
+        self.development_mode = development_mode
 
-        # Authenticate and retrieve graph details from the marketplace backend
-        self.graph_info = self._get_graph_info()
+        try:
+            # Authenticate and retrieve graph details
+            self.graph_info = self._get_graph_info()
 
-        # Decrypt the LangGraph API key
-        decrypted_lgraph_api_key = self._decrypt_api_key(self.graph_info['access_token'])
+            # Extract the LangGraph API key from token
+            lgraph_api_key = self._extract_api_key(self.graph_info['access_token'])
 
-        # Create internal RemoteGraph instance
-        self.remote_graph = RemoteGraph(
-            self.graph_info['graph_name'],
-            url=self.graph_info['graph_url'],
-            api_key=decrypted_lgraph_api_key,
-            config=config,
-        )
+            # Create internal RemoteGraph instance
+            self.remote_graph = RemoteGraph(
+                self.graph_info['graph_name'],
+                url=self.graph_info['graph_url'],
+                api_key=lgraph_api_key,
+                config=config,
+            )
+        except Exception as e:
+            raise APIError(f"Failed to initialize graph: {str(e)}")
 
     def _get_graph_info(self) -> dict:
-        """
-        Authenticate with the marketplace backend and retrieve graph details.
-
-        Returns:
-            A dictionary containing graph details.
-
-        Raises:
-            InvalidAPIKeyError: If the API key is invalid.
-            GraphNotPurchasedError: If the graph hasn't been purchased by the user.
-            GraphNotFoundError: If the graph does not exist.
-            BackendAPIError: For other backend errors.
-        """
-        endpoint = "http://127.0.0.1:8000/api/get_graph_info"  # Local testing
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {"graph_name": self.graph_name}
-
-        response = requests.post(endpoint, json=payload, headers=headers)
-        if response.status_code == 401:
-            raise InvalidAPIKeyError("Invalid lmsystems API key.")
-        elif response.status_code == 403:
-            raise GraphNotPurchasedError(f"You have not purchased the graph '{self.graph_name}'.")
-        elif response.status_code == 404:
-            raise GraphNotFoundError(f"Graph '{self.graph_name}' not found.")
-        elif response.status_code != 200:
-            raise BackendAPIError(f"Backend API error: {response.text}")
-
-        return response.json()
-
-    def _decrypt_api_key(self, access_token: str) -> str:
-        """
-        Extract the LangGraph API key from the JWT token.
-
-        Args:
-            access_token: JWT token containing the API key
-
-        Returns:
-            The LangGraph API key
-
-        Raises:
-            LmsystemsError: If there are any issues with the token
-        """
+        """Authenticate with the marketplace backend and retrieve graph details."""
         try:
-            # Decode JWT token
-            SECRET_KEY = "your_secret_key"  # This should match the backend
-            decoded_token = jwt.decode(access_token, SECRET_KEY, algorithms=["HS256"])
+            endpoint = f"{self.base_url}/api/get_graph_info"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {"graph_name": self.graph_name}
 
-            # Extract the API key
+            response = requests.post(endpoint, json=payload, headers=headers)
+
+            if response.status_code == 401:
+                raise AuthenticationError("Invalid API key.")
+            elif response.status_code == 403:
+                raise GraphError(f"Graph '{self.graph_name}' has not been purchased")
+            elif response.status_code == 404:
+                raise GraphError(f"Graph '{self.graph_name}' not found")
+            elif response.status_code != 200:
+                raise APIError(f"Backend API error: {response.text}")
+
+            return response.json()
+        except requests.RequestException as e:
+            raise APIError(f"Failed to communicate with backend: {str(e)}")
+
+    def _extract_api_key(self, access_token: str) -> str:
+        """Extract the LangGraph API key from the JWT token without verification."""
+        try:
+            decoded_token = jwt.decode(access_token, options={"verify_signature": False})
             lgraph_api_key = decoded_token.get("lgraph_api_key")
             if not lgraph_api_key:
-                raise LmsystemsError("API key not found in token.")
-
+                raise GraphAuthenticationError("LangGraph API key not found in token payload")
             return lgraph_api_key
-
-        except jwt.ExpiredSignatureError:
-            raise LmsystemsError("Access token has expired.")
-        except jwt.DecodeError:
-            raise LmsystemsError("Error decoding access token.")
+        except jwt.InvalidTokenError as e:
+            raise GraphAuthenticationError(f"Invalid access token: {str(e)}")
         except Exception as e:
-            raise LmsystemsError(f"Error processing API key: {e}")
+            raise GraphAuthenticationError(f"Failed to decode token: {str(e)}")
 
     def _prepare_input(self, input: Union[dict[str, Any], Any]) -> dict[str, Any]:
         """Merge input with default state values."""
-        if isinstance(input, dict):
-            return {**self.default_state_values, **input}
-        return input
+        try:
+            if isinstance(input, dict):
+                return {**self.default_state_values, **input}
+            return input
+        except Exception as e:
+            raise ValidationError(f"Failed to prepare input: {str(e)}")
 
     # Delegate methods to the internal RemoteGraph instance
     def invoke(self, input: Union[dict[str, Any], Any], config: Optional[RunnableConfig] = None, **kwargs: Any) -> Union[dict[str, Any], Any]:
-        prepared_input = self._prepare_input(input)
-        return self.remote_graph.invoke(prepared_input, config=config, **kwargs)
+        """
+        Invoke the graph with the given input.
+
+        Args:
+            input: The input for the graph
+            config: Optional configuration override
+            **kwargs: Additional arguments
+
+        Raises:
+            InputError: If the input is invalid
+            GraphError: If graph execution fails
+            APIError: If there are communication issues
+        """
+        try:
+            prepared_input = self._prepare_input(input)
+            return self.remote_graph.invoke(prepared_input, config=config, **kwargs)
+        except Exception as e:
+            if isinstance(e, LmsystemsError):
+                raise
+            raise GraphError(f"Failed to execute graph: {str(e)}")
 
     async def ainvoke(self, input: Union[dict[str, Any], Any], config: Optional[RunnableConfig] = None, **kwargs: Any) -> Union[dict[str, Any], Any]:
         prepared_input = self._prepare_input(input)

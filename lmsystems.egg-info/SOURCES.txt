@@ -2,6 +2,8 @@ LICENSE
 README.md
 setup.py
 lmsystems/__init__.py
+lmsystems/client.py
+lmsystems/config.py
 lmsystems/exceptions.py
 lmsystems/purchased_graph.py
 lmsystems.egg-info/PKG-INFO

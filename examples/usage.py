@@ -1,17 +1,31 @@
 from lmsystems.purchased_graph import PurchasedGraph
 from langgraph.graph import StateGraph, START, MessagesState
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Define your configuration
+config = {
+    "configurable": {
+        "model": "anthropic",
+        "anthropic_api_key": ""
+    }
+}
 
 # Define required state values
 state_values = {
-    "repo_url": "https://github.com/RVCA212/portfolio-starter-kit",
-    "github_token": "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",
-    "repo_path": "/repo"
+    "repo_url": "https://github.com/RVCA212/airport-gaming",
+    "github_token": "",
+    "repo_path": "/repo/152343"
 }
 
-# Instantiate the purchased graph with default state values
+# Instantiate the purchased graph with the config
 purchased_graph = PurchasedGraph(
-    graph_name="engineer",
-    api_key="abc123securetestkey",
+    graph_name="github-agent-6",
+    api_key=os.environ.get("LMSYSTEMS_API_KEY"),
+    config=config,
     default_state_values=state_values
 )
 
@@ -33,8 +47,3 @@ for chunk in graph.stream({
 }, subgraphs=True):
     print(chunk)
 
-# You can also override default values when needed
-result_with_different_repo = graph.invoke({
-    "messages": [{"role": "user", "content": "what's this repo about?"}],
-    "repo_url": "https://github.com/different/repo"  # This will override the default
-})
