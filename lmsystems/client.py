@@ -49,14 +49,15 @@ class LmsystemsClient:
     async def setup(self) -> None:
         """Initialize the client asynchronously."""
         try:
-            graph_info = await self._get_graph_info()
+            # Store graph info for later use of configurables
+            self.graph_info = await self._get_graph_info()
 
             # Store default assistant_id and use lgraph_api_key directly
-            self.default_assistant_id = graph_info.get('assistant_id')
+            self.default_assistant_id = self.graph_info.get('assistant_id')
 
             self.client = get_client(
-                url=graph_info['graph_url'],
-                api_key=graph_info['lgraph_api_key']  # Use API key directly
+                url=self.graph_info['graph_url'],
+                api_key=self.graph_info['lgraph_api_key']
             )
         except Exception as e:
             raise APIError(f"Failed to initialize client: {str(e)}")
@@ -125,6 +126,23 @@ class LmsystemsClient:
                 if self.default_assistant_id is None:
                     raise APIError("No assistant_id provided and no default available")
                 assistant_id = self.default_assistant_id
+
+            # Get stored configurables from graph info
+            stored_config = self.graph_info.get('configurables', {})
+
+            # Get user-provided config from kwargs
+            user_config = kwargs.pop('config', {})
+
+            # Merge configs, with user-provided values taking precedence
+            merged_config = stored_config.copy()
+            if user_config:
+                if 'configurable' in user_config and 'configurable' in stored_config:
+                    merged_config['configurable'].update(user_config['configurable'])
+                else:
+                    merged_config.update(user_config)
+
+            # Add merged config back to kwargs
+            kwargs['config'] = merged_config
 
             return await self.client.runs.create(
                 thread_id=thread_id,

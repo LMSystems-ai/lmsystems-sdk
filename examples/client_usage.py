@@ -1,6 +1,7 @@
 from lmsystems.client import LmsystemsClient
-import os
 from dotenv import load_dotenv
+import os
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -9,7 +10,7 @@ load_dotenv()
 async def main():
     # Simple initialization with just graph name and API key
     client = await LmsystemsClient.create(
-        graph_name="graph-name-id",
+        graph_name="github-agent-6",
         api_key=os.environ["LMSYSTEMS_API_KEY"]
     )
 
@@ -20,8 +21,8 @@ async def main():
         run = await client.create_run(
             thread,
             input={"messages": [{"role": "user", "content": "What's this repo about?"}],
-                  "repo_url": "",
-                  "repo_path": "",
+                  "repo_url": "hello.com",
+                  "repo_path": "/12344322",
                   "github_token": ""}
         )
 
@@ -33,5 +34,4 @@ async def main():
         print(f"Error: {str(e)}")
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())

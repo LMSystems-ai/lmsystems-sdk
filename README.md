@@ -39,6 +39,7 @@ async def main():
     try:
         thread = await client.create_thread()
 
+        # No need to provide config - it's handled through your account settings
         run = await client.create_run(
             thread,
             input={"messages": [{"role": "user", "content": "What's this repo about?"}],
@@ -72,14 +73,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure your graph
-config = {
-    "configurable": {
-        "model": "anthropic",
-        "anthropic_api_key": "your-api-key"
-    }
-}
-
 # Set required state values
 state_values = {
     "repo_url": "https://github.com/yourusername/yourrepo",
@@ -87,11 +80,10 @@ state_values = {
     "repo_path": "/path/to/1234322"
 }
 
-# Initialize the purchased graph
+# Initialize the purchased graph - no config needed!
 purchased_graph = PurchasedGraph(
     graph_name="github-agent-6",
     api_key=os.environ.get("LMSYSTEMS_API_KEY"),
-    config=config,
     default_state_values=state_values
 )
 
@@ -113,15 +105,35 @@ for chunk in graph.stream({
     print(chunk)
 ```
 
-## Authentication
+## Configuration
 
-### API Key
-To use the SDK, you'll need an LMSystems API key. Get your API key by:
-1. Creating an account at [LMSystems](https://www.lmsystems.ai)
-2. Navigate to your account settings
-3. Generate an API key
+### API Keys and Configuration
+The SDK now automatically handles configuration through your LMSystems account. To set up:
 
-Store your API key securely using environment variables:
+1. Create an account at [LMSystems](https://www.lmsystems.ai)
+2. Navigate to your [account settings](https://www.lmsystems.ai/account)
+3. Configure your API keys (OpenAI, Anthropic, etc.)
+4. Generate your LMSystems API key
+
+Your configured API keys and settings will be automatically used when running graphs - no need to include them in your code!
+
+> **Note**: While configuration is handled automatically, you can still override settings programmatically if needed:
+```python
+# Optional: Override stored config
+config = {
+    "configurable": {
+        "model": "gpt-4",
+        "openai_api_key": "your-custom-key"
+    }
+}
+purchased_graph = PurchasedGraph(
+    graph_name="github-agent-6",
+    api_key=os.environ.get("LMSYSTEMS_API_KEY"),
+    config=config  # Optional override
+)
+```
+
+Store your LMSystems API key securely using environment variables:
 ```bash
 export LMSYSTEMS_API_KEY="your-api-key"
 ```

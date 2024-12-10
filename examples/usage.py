@@ -6,26 +6,17 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Define your configuration
-config = {
-    "configurable": {
-        "model": "anthropic",
-        "anthropic_api_key": ""
-    }
-}
-
 # Define required state values
 state_values = {
-    "repo_url": "https://github.com/RVCA212/airport-gaming",
+    "repo_url": "https://github.com/user/repo",
     "github_token": "",
     "repo_path": "/repo/152343"
 }
 
-# Instantiate the purchased graph with the config
+# Instantiate the purchased graph without config
 purchased_graph = PurchasedGraph(
     graph_name="github-agent-6",
     api_key=os.environ.get("LMSYSTEMS_API_KEY"),
-    config=config,
     default_state_values=state_values
 )
 

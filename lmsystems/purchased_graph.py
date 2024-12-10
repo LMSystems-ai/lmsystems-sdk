@@ -58,15 +58,27 @@ class PurchasedGraph(PregelProtocol):
             # Authenticate and retrieve graph details
             self.graph_info = self._get_graph_info()
 
-            # Extract the LangGraph API key from token
-            lgraph_api_key = self._extract_api_key(self.graph_info['access_token'])
+            # Merge stored configurables with any user-provided config
+            stored_config = self.graph_info.get('configurables', {})
+            merged_config = stored_config.copy()
+            if config:
+                # Deep merge the configs, with user-provided values taking precedence
+                if 'configurable' in config and 'configurable' in stored_config:
+                    merged_config['configurable'].update(config['configurable'])
+                else:
+                    merged_config.update(config)
 
-            # Create internal RemoteGraph instance
+            # Get the LangGraph API key directly from response
+            lgraph_api_key = self.graph_info.get('lgraph_api_key')
+            if not lgraph_api_key:
+                raise GraphError("LangGraph API key not found in response")
+
+            # Create internal RemoteGraph instance with merged config
             self.remote_graph = RemoteGraph(
                 self.graph_info['graph_name'],
                 url=self.graph_info['graph_url'],
                 api_key=lgraph_api_key,
-                config=config,
+                config=merged_config,
             )
         except Exception as e:
             raise APIError(f"Failed to initialize graph: {str(e)}")
