@@ -8,14 +8,14 @@ load_dotenv()
 
 # Define required state values
 state_values = {
-    "repo_url": "https://github.com/user/repo",
+    "repo_url": "https://github.com/RVCA212/airport-gaming",
     "github_token": "",
-    "repo_path": "/repo/152343"
+    "repo_path": "/users/152343"
 }
 
 # Instantiate the purchased graph without config
 purchased_graph = PurchasedGraph(
-    graph_name="github-agent-6",
+    graph_name="stripe-expert-31",
     api_key=os.environ.get("LMSYSTEMS_API_KEY"),
     default_state_values=state_values
 )

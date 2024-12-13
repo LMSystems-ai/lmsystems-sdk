@@ -10,10 +10,10 @@ load_dotenv()
 async def main():
     # Simple initialization with just graph name and API key
     client = await LmsystemsClient.create(
-        graph_name="github-agent-6",
-        api_key=os.environ["LMSYSTEMS_API_KEY"]
+        graph_name="stripe-expert-31",
+        api_key=os.environ.get("LMSYSTEMS_API_KEY")
     )
-
+    
     # Create thread and run with error handling
     try:
         thread = await client.create_thread()
@@ -21,9 +21,9 @@ async def main():
         run = await client.create_run(
             thread,
             input={"messages": [{"role": "user", "content": "What's this repo about?"}],
-                  "repo_url": "hello.com",
-                  "repo_path": "/12344322",
-                  "github_token": ""}
+            "repo_url": "https://github.com/RVCA212/airport-gaming",
+            "github_token": "",
+            "repo_path": "/users/152343"}
         )
 
         # Stream response
