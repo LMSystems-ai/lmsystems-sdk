@@ -5,6 +5,13 @@ The LMSystems SDK provides flexible interfaces for integrating and executing pur
 1. **PurchasedGraph Class**: For seamless integration with LangGraph workflows
 2. **LmsystemsClient**: For direct, low-level interaction with LMSystems graphs, offering more flexibility and control
 
+### Try it in Colab
+
+Get started quickly with our interactive Colab notebook:
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/18IGOYcnN_CZSuH6RBwIjeXq9zMMs59OQ?usp=sharing)
+
+This notebook provides a hands-on introduction to the LMSystems SDK with ready-to-run examples.
+
 ## Installation
 
 Install the package using pip:
@@ -12,6 +19,7 @@ Install the package using pip:
 ```bash
 pip install lmsystems
 ```
+
 
 ## Quick Start
 

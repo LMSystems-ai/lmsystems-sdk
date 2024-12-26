@@ -30,9 +30,16 @@ class LmsystemsClient:
         """
         self.graph_name = graph_name
         self.api_key = api_key
-        self.base_url = base_url
+
+        # Validate and set base URL
+        if not base_url:
+            base_url = "https://api.lmsystems.ai"
+        if not base_url.startswith(("http://", "https://")):
+            base_url = f"https://{base_url}"
+        self.base_url = base_url.rstrip('/')  # Remove trailing slash if present
+
         self.client = None
-        self.default_assistant_id = None  # Store default assistant_id
+        self.default_assistant_id = None
 
     @classmethod
     async def create(
@@ -207,7 +214,7 @@ class SyncLmsystemsClient:
         graph_name: str,
         api_key: str,
         base_url: str = Config.DEFAULT_BASE_URL,
-        stream_mode: bool = True  # Add stream mode configuration
+        stream_mode: bool = True
     ) -> None:
         """
         Initialize the synchronous Lmsystems client.
@@ -215,20 +222,24 @@ class SyncLmsystemsClient:
         Args:
             graph_name: The name of the purchased graph
             api_key: The Lmsystems API key
-            base_url: Base URL for the Lmsystems API
+            base_url: Base URL for the Lmsystems API (defaults to https://api.lmsystems.ai)
             stream_mode: Stream mode preference
         """
         self.graph_name = graph_name
         self.api_key = api_key
-        self.base_url = base_url
-        self.stream_mode = stream_mode  # Store stream mode preference
+
+        # Validate and set base URL
+        if not base_url:
+            base_url = "https://api.lmsystems.ai"
+        if not base_url.startswith(("http://", "https://")):
+            base_url = f"https://{base_url}"
+        self.base_url = base_url.rstrip('/')  # Remove trailing slash if present
+
+        self.stream_mode = stream_mode
 
         # Synchronous initialization
         self.graph_info = self._get_graph_info()
-
-        # Store default assistant_id
         self.default_assistant_id = self.graph_info.get('assistant_id')
-
         self.client = get_sync_client(
             url=self.graph_info['graph_url'],
             api_key=self.graph_info['lgraph_api_key']
