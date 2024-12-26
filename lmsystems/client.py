@@ -1,5 +1,5 @@
 import httpx
-from typing import Optional, Any, AsyncIterator, Union
+from typing import Optional, Any, AsyncIterator, Union, Iterator
 import jwt
 from langgraph_sdk import get_client, get_sync_client
 from .exceptions import AuthenticationError, GraphError, APIError
@@ -207,6 +207,7 @@ class SyncLmsystemsClient:
         graph_name: str,
         api_key: str,
         base_url: str = Config.DEFAULT_BASE_URL,
+        stream_mode: bool = True  # Add stream mode configuration
     ) -> None:
         """
         Initialize the synchronous Lmsystems client.
@@ -215,18 +216,22 @@ class SyncLmsystemsClient:
             graph_name: The name of the purchased graph
             api_key: The Lmsystems API key
             base_url: Base URL for the Lmsystems API
+            stream_mode: Stream mode preference
         """
         self.graph_name = graph_name
         self.api_key = api_key
         self.base_url = base_url
+        self.stream_mode = stream_mode  # Store stream mode preference
 
         # Synchronous initialization
-        graph_info = self._get_graph_info()
-        lgraph_api_key = self._extract_api_key(graph_info['access_token'])
+        self.graph_info = self._get_graph_info()
+
+        # Store default assistant_id
+        self.default_assistant_id = self.graph_info.get('assistant_id')
 
         self.client = get_sync_client(
-            url=graph_info['graph_url'],
-            api_key=lgraph_api_key
+            url=self.graph_info['graph_url'],
+            api_key=self.graph_info['lgraph_api_key']
         )
 
     def _get_graph_info(self) -> dict:
@@ -286,3 +291,69 @@ class SyncLmsystemsClient:
     def store(self):
         """Access the store API."""
         return self.client.store
+
+    def create_run(self, thread: dict, *, assistant_id: Optional[str] = None, **kwargs) -> dict:
+        """Create a run with proper thread ID handling."""
+        try:
+            thread_id = thread.get("thread_id") or thread.get("id")
+            if not thread_id:
+                raise APIError("Invalid thread response format")
+
+            # Use default assistant_id if none provided
+            if assistant_id is None:
+                if self.default_assistant_id is None:
+                    raise APIError("No assistant_id provided and no default available")
+                assistant_id = self.default_assistant_id
+
+            # Get stored configurables from graph info
+            stored_config = self.graph_info.get('configurables', {})
+
+            # Get user-provided config from kwargs
+            user_config = kwargs.pop('config', {})
+
+            # Merge configs, with user-provided values taking precedence
+            merged_config = stored_config.copy()
+            if user_config:
+                if 'configurable' in user_config and 'configurable' in stored_config:
+                    merged_config['configurable'].update(user_config['configurable'])
+                else:
+                    merged_config.update(user_config)
+
+            # Add merged config back to kwargs
+            kwargs['config'] = merged_config
+
+            return self.client.runs.create(
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+                **kwargs
+            )
+        except Exception as e:
+            raise APIError(f"Failed to create run: {str(e)}")
+
+    def join_run(self, thread: dict, run: dict, **kwargs) -> Union[dict, Iterator]:
+        """Join a run and wait for completion with error handling."""
+        try:
+            thread_id = thread.get("thread_id") or thread.get("id")
+            if not thread_id:
+                raise APIError("Invalid thread response format")
+
+            run_id = run.get("run_id") or run.get("id")
+            if not run_id:
+                raise APIError("Invalid run response format")
+
+            if self.stream_mode:
+                # Use join_stream for streaming mode
+                return self.client.runs.join_stream(
+                    thread_id=thread_id,
+                    run_id=run_id,
+                    **kwargs
+                )
+            else:
+                # Use join for non-streaming mode
+                return self.client.runs.join(
+                    thread_id=thread_id,
+                    run_id=run_id,
+                    **kwargs
+                )
+        except Exception as e:
+            raise APIError(f"Failed to join run: {str(e)}")

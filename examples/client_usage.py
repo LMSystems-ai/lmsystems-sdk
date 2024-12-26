@@ -13,7 +13,7 @@ async def main():
         graph_name="stripe-expert-31",
         api_key=os.environ.get("LMSYSTEMS_API_KEY")
     )
-    
+
     # Create thread and run with error handling
     try:
         thread = await client.create_thread()
@@ -23,7 +23,12 @@ async def main():
             input={"messages": [{"role": "user", "content": "What's this repo about?"}],
             "repo_url": "https://github.com/RVCA212/airport-gaming",
             "github_token": "",
-            "repo_path": "/users/152343"}
+            "repo_path": "/users/152343"},
+            config={
+                "configurable": {
+                    "anthropic_api_key": os.environ.get("ANTHROPIC_API_KEY"),
+                }
+            }
         )
 
         # Stream response

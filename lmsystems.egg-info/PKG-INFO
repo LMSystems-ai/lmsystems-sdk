@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: lmsystems
-Version: 0.0.3
+Version: 0.0.5
 Summary: SDK for integrating purchased graphs from the lmsystems marketplace.
 Home-page: https://www.lmsystems.ai/
 Author: Sean Sullivan
@@ -9,6 +9,11 @@ Classifier: Programming Language :: Python :: 3
 Classifier: Operating System :: OS Independent
 Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: requests>=2.25.1
+Requires-Dist: langgraph>=0.2.53
+Requires-Dist: langgraph_sdk>=0.1.36
+Requires-Dist: httpx>=0.24.0
+Requires-Dist: pyjwt>=2.0.0
 
 # LMSystems SDK
 
@@ -51,6 +56,7 @@ async def main():
     try:
         thread = await client.create_thread()
 
+        # No need to provide config - it's handled through your account settings
         run = await client.create_run(
             thread,
             input={"messages": [{"role": "user", "content": "What's this repo about?"}],
@@ -84,14 +90,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure your graph
-config = {
-    "configurable": {
-        "model": "anthropic",
-        "anthropic_api_key": "your-api-key"
-    }
-}
-
 # Set required state values
 state_values = {
     "repo_url": "https://github.com/yourusername/yourrepo",
@@ -99,11 +97,10 @@ state_values = {
     "repo_path": "/path/to/1234322"
 }
 
-# Initialize the purchased graph
+# Initialize the purchased graph - no config needed!
 purchased_graph = PurchasedGraph(
     graph_name="github-agent-6",
     api_key=os.environ.get("LMSYSTEMS_API_KEY"),
-    config=config,
     default_state_values=state_values
 )
 
@@ -125,15 +122,35 @@ for chunk in graph.stream({
     print(chunk)
 ```
 
-## Authentication
+## Configuration
 
-### API Key
-To use the SDK, you'll need an LMSystems API key. Get your API key by:
-1. Creating an account at [LMSystems](https://www.lmsystems.ai)
-2. Navigate to your account settings
-3. Generate an API key
+### API Keys and Configuration
+The SDK now automatically handles configuration through your LMSystems account. To set up:
 
-Store your API key securely using environment variables:
+1. Create an account at [LMSystems](https://www.lmsystems.ai)
+2. Navigate to your [account settings](https://www.lmsystems.ai/account)
+3. Configure your API keys (OpenAI, Anthropic, etc.)
+4. Generate your LMSystems API key
+
+Your configured API keys and settings will be automatically used when running graphs - no need to include them in your code!
+
+> **Note**: While configuration is handled automatically, you can still override settings programmatically if needed:
+```python
+# Optional: Override stored config
+config = {
+    "configurable": {
+        "model": "gpt-4",
+        "openai_api_key": "your-custom-key"
+    }
+}
+purchased_graph = PurchasedGraph(
+    graph_name="github-agent-6",
+    api_key=os.environ.get("LMSYSTEMS_API_KEY"),
+    config=config  # Optional override
+)
+```
+
+Store your LMSystems API key securely using environment variables:
 ```bash
 export LMSYSTEMS_API_KEY="your-api-key"
 ```
@@ -212,10 +229,4 @@ except LmsystemsError as e:
 ## Support
 
 For support, feature requests, or bug reports:
-- Visit our [documentation](https://docs.lmsystems.ai)
-- Open an issue on our [GitHub repository](https://github.com/RVCA212/lmsystems-sdk)
-- Contact us at support@lmsystems.ai
-
-## License
-
-This project is licensed under the terms of the MIT license.
+- Contact me at sean.sullivan3@yahoo.com
